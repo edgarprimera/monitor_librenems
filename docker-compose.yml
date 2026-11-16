@@ -29,7 +29,7 @@ services:
     networks:
       - librenems_net
 
-  librenems:
+  librenms:
     image: librenms/librenms:latest
     container_name: librenems_web
     restart: always
@@ -62,7 +62,7 @@ services:
     container_name: librenems_dispatcher
     restart: always
     depends_on:
-      - librenems
+      - librenms
     environment:
       - TZ=${TZ}
       - PUID=1000

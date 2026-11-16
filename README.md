@@ -4,27 +4,39 @@ Plataforma de monitoreo y telemetría de red basada en **LibreNMS** sobre **Dock
 
 ---
 
+## 📑 Tabla de Contenidos
+1. [Propósito y Convivencia con Zabbix & Prometheus](#-propósito-y-convivencia-con-zabbix--prometheus)
+2. [Arquitectura del Stack](#-arquitectura-del-stack)
+3. [Despliegue en Windows (Docker Desktop)](#-despliegue-en-windows-docker-desktop)
+4. [Despliegue en VPS / Servidor Linux (Producción)](#-despliegue-en-vps--servidor-linux-producción)
+5. [Entendiendo la Pantalla de Validación (`validate.php`) en Docker](#-entendiendo-la-pantalla-de-validación-validatephp-en-docker)
+6. [Configuración SNMP en Equipos de Red](#-configuración-snmp-en-equipos-de-red)
+7. [Comandos Útiles de Mantenimiento](#-comandos-útiles-de-mantenimiento)
+8. [Roadmap](#-roadmap)
+
+---
+
 ## 🎯 Propósito y Convivencia con Zabbix & Prometheus
 
-Este proyecto complementa una infraestructura de observabilidad ya existente que cuenta con **Zabbix** y **Prometheus + Grafana**:
+Este proyecto complementa una infraestructura de observabilidad existente que ya cuenta con **Zabbix** y **Prometheus + Grafana**:
 
-* **Zabbix:** Monitoreo de servidores de gestión (Radius, DNS, CRM/ERP de facturación, hypervisores y bases de datos).
-* **Prometheus + Grafana:** Concentración de métricas de alta resolución, series temporales de servidores y dashboards ejecutivos en tiempo real.
+* **Zabbix:** Monitoreo de sistemas y servidores de gestión (Radius, DNS, CRM/ERP de facturación, hypervisores y bases de datos).
+* **Prometheus + Grafana:** Concentración de métricas de series temporales de alta resolución, contenedores y dashboards ejecutivos.
 * **LibreNMS (este stack):** Monitoreo especializado de la capa física y de transporte de red:
-  * Autodescubrimiento multi-fabricante sin necesidad de diseñar templates MIB manuales.
-  * Telemetría óptica **DOM/DDM** (niveles de potencia de transmisión y recepción Tx/Rx en dBm) para puertos SFP/SFP+ y puertos GPON.
+  * Autodescubrimiento multi-fabricante sin diseñar plantillas MIB manuales.
+  * Telemetría óptica **DOM/DDM** (niveles de potencia de transmisión y recepción Tx/Rx en dBm) para módulos SFP/SFP+ y puertos GPON.
   * Detección automática de sesiones **BGP**, vecinos **OSPF** y topología de red (**LLDP / MNDP**).
-  * Facturación de enlaces por **percentil 95 (95th percentile)**.
+  * Facturación de enlaces por **percentil 95 (95th percentile)** para tránsitos y clientes corporativos.
   * Base lista para integración de respaldos automáticos de configuración con **Oxidized**.
 
 ---
 
-## 🏗️ Arquitectura del Stack Docker
+## 🏗️ Arquitectura del Stack
 
 ```mermaid
 flowchart TD
-    subgraph Host["Host Docker"]
-        WEB["librenems_web (Nginx + PHP-FPM)\nPuerto: 8000"]
+    subgraph Host["Host Docker (Windows o Linux VPS)"]
+        WEB["librenms_web (Nginx + PHP-FPM)\nPuerto: 8000"]
         DISP["librenems_dispatcher\n(Sondeo asíncrono Python)"]
         REDIS["librenems_redis (Redis 7)\n(Cola de tareas y caché)"]
         DB["librenems_db (MariaDB 10.11)\n(utf8mb4 / lower_case_table_names=0)"]
@@ -47,132 +59,215 @@ flowchart TD
 ```
 
 ### Componentes:
-1. **`librenems` (Web):** Interfaz gráfica de administración y visualización de telemetría.
-2. **`dispatcher`:** Demonio de sondeo (poller) asíncrono y de alto rendimiento que consulta los dispositivos de red vía SNMP sin bloquear el servidor web.
-3. **`db` (MariaDB 10.11):** Base de datos relacional optimizada con los requerimientos específicos de LibreNMS.
-4. **`redis`:** Bus de mensajería y caché para distribuir las cargas de trabajo de sondeo y descubrimiento.
+* **`librenms` (Web):** Interfaz gráfica de administración y visualización de telemetría.
+* **`dispatcher`:** Servicio en segundo plano que actúa como **Master Poller y Scheduler** asíncrono en Python.
+* **`db` (MariaDB 10.11):** Base de datos relacional optimizada para LibreNMS.
+* **`redis`:** Bus de mensajería y caché para distribuir las cargas de trabajo de sondeo.
 
 ---
 
-## 🚀 Despliegue Rápido
+## 🪟 Despliegue en Windows (Docker Desktop)
 
-### 1. Requisitos Previos
-* [Docker Desktop](https://www.docker.com/) o Docker Engine con Docker Compose instalado.
-* Conectividad IP (ruta o VPN) hacia los dispositivos de red que se van a monitorear.
+### 1. Requisitos
+* Windows 10/11 Pro, Enterprise o Home con WSL2 habilitado.
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y en ejecución.
+* Git instalado.
 
-### 2. Configuración de Variables de Entorno
-Clona el repositorio y copia el archivo de ejemplo:
+### 2. Pasos de Instalación
+Abre **PowerShell** y ejecuta:
 
-```bash
+```powershell
+# 1. Clonar el repositorio
 git clone git@github.com:edgarprimera/monitor_librenems.git
 cd monitor_librenems
-cp .env.example .env
-```
 
-Edita el archivo `.env` según tus necesidades:
-* Define tu zona horaria en `TZ` (ej: `America/Caracas`, `America/Bogota`).
-* Establece contraseñas seguras para `MYSQL_PASSWORD` y `MYSQL_ROOT_PASSWORD`.
-* Si el puerto `8000` está ocupado, modifica `LIBRENEMS_WEB_PORT`.
+# 2. Crear archivo de variables de entorno
+Copy-Item .env.example .env
 
-### 3. Iniciar los Contenedores
-Ejecuta:
+# 3. Editar las contraseñas en .env con tu editor preferido (Notepad, VS Code, etc.)
+notepad .env
 
-```bash
+# 4. Levantar los contenedores
 docker compose up -d
+
+# 5. Crear el usuario administrador
+docker compose exec librenms lnms user:add -r admin tu_usuario
+
+# 6. Configurar la URL base
+docker compose exec librenms lnms config:set base_url http://localhost:8000
 ```
 
-Verifica el estado de los servicios:
+Acceso: abre tu navegador en **`http://localhost:8000`**.
+
+---
+
+## 🐧 Despliegue en VPS / Servidor Linux (Producción)
+
+Guía optimizada para **Ubuntu 22.04 / 24.04 LTS** o **Debian 12**.
+
+### 1. Preparar el Servidor y Docker
+Conéctate por SSH a tu VPS y ejecuta:
+
 ```bash
-docker compose ps
+# Actualizar el sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar dependencias previas
+sudo apt install -y ca-certificates curl gnupg lsb-release git ufw
+
+# Instalar Docker Engine oficial y Docker Compose Plugin
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Habilitar Docker para iniciar con el sistema
+sudo systemctl enable --now docker
 ```
 
-### 4. Crear el Usuario Administrador
-Una vez que los contenedores estén en ejecución, crea el primer usuario administrador desde la consola:
+### 2. Configurar Firewall (UFW)
+Asegura los puertos en tu VPS:
 
 ```bash
-docker compose exec librenems lnms user:add -r admin tu_usuario
-```
-*(El sistema te solicitará contraseña y correo electrónico).*
+# Permitir SSH
+sudo ufw allow 22/tcp
 
-### 5. Acceder a la Interfaz Web
-Abre tu navegador e ingresa a:
-👉 **`http://localhost:8000`** *(o la IP de tu servidor en el puerto configurado)*.
+# Puerto web LibreNMS (o usa 80/443 si colocas proxy reverso Nginx)
+sudo ufw allow 8000/tcp
+
+# Opcional: recepción de SNMP Traps y Syslog desde los equipos de red
+sudo ufw allow 162/udp
+sudo ufw allow 514/udp
+
+# Activar firewall
+sudo ufw enable
+```
+
+### 3. Clonar y Levantar el Proyecto
+
+```bash
+# Clonar en /opt
+sudo git clone git@github.com:edgarprimera/monitor_librenems.git /opt/monitor_librenems
+cd /opt/monitor_librenems
+
+# Crear y ajustar variables
+sudo cp .env.example .env
+sudo nano .env
+
+# Levantar los servicios
+sudo docker compose up -d
+
+# Crear usuario administrador
+sudo docker compose exec librenms lnms user:add -r admin tu_usuario
+
+# Establecer la URL base de tu VPS (IP pública o dominio)
+sudo docker compose exec librenms lnms config:set base_url http://IP_DE_TU_VPS:8000
+```
+
+> [!TIP]
+> **Recomendación para Producción:** En un VPS público se aconseja instalar **Nginx** o **Caddy** como proxy reverso con certificado SSL gratuito (Let's Encrypt) para acceder vía `https://monitoreo.tu-isp.com`.
+
+---
+
+## 🔍 Entendiendo la Pantalla de Validación (`validate.php`) en Docker
+
+Al ejecutar la validación desde la web (**Gear Icon $\rightarrow$ Validate Config**) o mediante CLI, LibreNMS evalúa el entorno. En una arquitectura de **microservicios / contenedores**, ciertas advertencias son completamente esperadas y normales:
+
+| Validación | Estado | ¿Por qué ocurre en Docker? | Solución / Aclaración |
+| :--- | :---: | :--- | :--- |
+| **`WARN: You have no devices`** | ⚠️ Advertencia | Es una instalación limpia; aún no has agregado tu primer equipo. | Normal. Desaparece en cuanto agregas tu primer MikroTik, ZTE o V-SOL en `/addhost`. |
+| **`FAIL: No python wrapper pollers found`** | ❌ Falso Positivo | El script evalúa el contenedor Web. El sondeo no corre en la Web, sino en el contenedor **`dispatcher`**. | **Comportamiento esperado en Docker**. El contenedor `dispatcher` corre de forma independiente en Python. |
+| **`FAIL: Scheduler is not running`** | ❌ Falso Positivo | El contenedor Web no corre `cron` tradicional de Linux. | **Comportamiento esperado**. El contenedor `dispatcher` asume el rol de Master Scheduler y ejecuta las tareas programadas. |
+| **`FAIL: Python3 module issue found`** | ❌ Falso Positivo | En Python 3.12+ la librería legacy `pkg_resources` fue deprecada, lo que genera un error al validar módulos de script. | No afecta en absoluto al funcionamiento del servicio. |
+| **`WARN: Non-git Install`** | ⚠️ Informativo | El contenedor no se instaló clonando git en el host local. | Normal en Docker. Las actualizaciones se gestionan con `docker compose pull`. |
+| **`WARN: base_url could be more specific`** | ⚠️ Corregido | Falta definir la URL exacta de acceso. | Ejecutar: `docker compose exec librenms lnms config:set base_url http://tu-ip:8000` |
 
 ---
 
 ## ⚙️ Configuración SNMP en Equipos de Red
 
-Para que LibreNMS pueda descubrir automáticamente tus equipos, configura SNMP en cada plataforma:
-
 ### 1. MikroTik (RouterOS v6 / v7)
 ```routeros
-# Habilitar SNMP
+# Habilitar el servicio SNMP
 /snmp set enabled=yes contact="NOC ISP" location="Datacenter Principal"
 
-# Crear comunidad SNMP de solo lectura
+# Crear comunidad SNMP de solo lectura para la IP del servidor LibreNMS
 /snmp community add name=tuComunidadSNMP addresses=IP_DEL_SERVIDOR_LIBRENEMS/32 read-access=yes
 ```
 
 ### 2. ZTE OLT (C300 / C320 / C600)
 ```text
-# En modo configuración global
 configure terminal
 snmp-server community tuComunidadSNMP view AllView ro
 snmp-server location "Pop Fibra Centro"
 snmp-server contact "NOC ISP"
+exit
+write
 ```
 
 ### 3. V-SOL OLT (V1600 Series)
-* Desde la interfaz Web de V-SOL: **Configuration** $\rightarrow$ **SNMP**.
-* Habilitar el servicio SNMP.
-* Definir **Community String** (solo lectura / Read-Only).
-* Permitir la IP del servidor LibreNMS como Host autorizado.
+1. Ingresa a la interfaz web de la OLT: **Configuration $\rightarrow$ SNMP**.
+2. Habilita el servicio SNMP.
+3. En **Community**, ingresa tu clave de comunidad con permiso **Read-Only**.
+4. En **Authorized Host / IP**, asigna la IP del servidor donde corre LibreNMS.
 
 ---
 
 ## 🛠️ Comandos Útiles de Mantenimiento
 
-* **Ver registros en tiempo real:**
+* **Ver el estado de los contenedores:**
   ```bash
-  docker compose logs -f librenems
+  docker compose ps
+  ```
+
+* **Inspeccionar registros en tiempo real:**
+  ```bash
+  # Ver actividad del despachador de sondeo
   docker compose logs -f dispatcher
+
+  # Ver actividad del servidor web
+  docker compose logs -f librenms
   ```
 
-* **Ejecutar validación de instalación de LibreNMS:**
+* **Ejecutar validación por consola:**
   ```bash
-  docker compose exec --user librenems librenems php validate.php
+  docker compose exec --user librenms librenms php validate.php
   ```
 
-* **Descubrir o sondear manualmente un dispositivo:**
+* **Forzar sondeo o descubrimiento manual de un dispositivo:**
   ```bash
-  # Forzar descubrimiento completo de un equipo por IP
-  docker compose exec --user librenems librenems ./discovery.php -h IP_EQUIPO -d
+  # Descubrimiento completo
+  docker compose exec --user librenms librenms ./discovery.php -h IP_EQUIPO -d
 
-  # Forzar sondeo de métricas de un equipo por IP
-  docker compose exec --user librenems librenems ./poller.php -h IP_EQUIPO -d
+  # Sondeo de métricas
+  docker compose exec --user librenms librenms ./poller.php -h IP_EQUIPO -d
   ```
 
-* **Reiniciar el stack:**
+* **Actualizar el stack a la última versión:**
   ```bash
-  docker compose restart
-  ```
-
-* **Detener el stack conservando los datos:**
-  ```bash
-  docker compose down
+  docker compose pull
+  docker compose up -d
   ```
 
 ---
 
-## 🗺️ Roadmap de Mejoras Recomendadas
+## 🗺️ Roadmap
 
-1. **Oxidized:** Integrar contenedor de Oxidized para respaldo automático versionado en Git de las configuraciones de MikroTik y ZTE.
-2. **Weathermap:** Activar el plugin de mapa de tráfico en tiempo real para pantallas de NOC.
-3. **Grafana Data Source:** Conectar LibreNMS con Grafana para reutilizar las métricas ópticas en tableros consolidados junto a Prometheus.
+- [x] Despliegue de Docker Compose (MariaDB 10.11, Redis 7, Web y Dispatcher).
+- [x] Documentación y compatibilidad para Windows y Linux VPS.
+- [ ] Integración de **Oxidized** para respaldo automático y versionado de configuraciones de MikroTik y ZTE.
+- [ ] Módulo **Weathermap** para visualización de capacidad de enlaces troncales en tiempo real.
+- [ ] Exportación de métricas de LibreNMS hacia **Grafana**.
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto y su configuración se distribuyen bajo la licencia [MIT](LICENSE).
-LibreNMS se distribuye bajo la licencia GNU General Public License v3.0 (GPLv3).
+Distribuido bajo la licencia [MIT](LICENSE). LibreNMS está sujeto a la licencia GPLv3.
