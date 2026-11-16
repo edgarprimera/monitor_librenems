@@ -52,8 +52,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
+      - LIBRENMS_WEATHERMAP=true
+      - LIBRENMS_WEATHERMAP_SCHEDULE=*/5 * * * *
     volumes:
       - librenems-data:/data
+      - weathermap-plugin:/opt/librenms/html/plugins/Weathermap
     networks:
       - librenems_net
 
@@ -87,6 +90,9 @@ services:
 volumes:
   db-data:
   librenems-data:
+  weathermap-plugin:
+    name: librenms_weathermap_plugin
+    external: true
 
 networks:
   librenems_net:

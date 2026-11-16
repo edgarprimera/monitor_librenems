@@ -7,6 +7,19 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [1.1.0] - 2026-11-15
+
+### Añadido
+* **Integración del plugin PHP Weathermap**:
+  * Instalación del plugin con volumen persistente dedicado (`librenms_weathermap_plugin`).
+  * Enrutamiento de configuraciones de mapas hacia `/data/weathermap` en almacenamiento persistente.
+  * Automatización mediante demonio `crond` interno con ejecución de sondeo (`map-poller.php`) cada 5 minutos (`LIBRENMS_WEATHERMAP=true`, `LIBRENMS_WEATHERMAP_SCHEDULE=*/5 * * * *`).
+  * Activación del editor visual en `/plugins/Weathermap/editor.php` para diagramas jerárquicos estilo NOC.
+* **Documentación**:
+  * Actualización de `README.md` con la guía de uso del editor Weathermap.
+
+---
+
 ## [1.0.0] - 2026-11-15
 
 ### Añadido
