@@ -1,0 +1,93 @@
+services:
+  db:
+    image: mariadb:10.11
+    container_name: librenems_db
+    restart: always
+    environment:
+      - TZ=${TZ}
+      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${MYSQL_DATABASE}
+      - MARIADB_USER=${MYSQL_USER}
+      - MARIADB_PASSWORD=${MYSQL_PASSWORD}
+    command:
+      - "mysqld"
+      - "--innodb-file-per-table=1"
+      - "--lower-case-table-names=0"
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - librenems_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: librenems_redis
+    restart: always
+    environment:
+      - TZ=${TZ}
+    networks:
+      - librenems_net
+
+  librenems:
+    image: librenms/librenms:latest
+    container_name: librenems_web
+    restart: always
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "${LIBRENEMS_WEB_PORT}:8000"
+    environment:
+      - TZ=${TZ}
+      - PUID=1000
+      - PGID=1000
+      - DB_HOST=db
+      - DB_NAME=${MYSQL_DATABASE}
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_TIMEOUT=60
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    volumes:
+      - librenems-data:/data
+    networks:
+      - librenems_net
+
+  dispatcher:
+    image: librenms/librenms:latest
+    container_name: librenems_dispatcher
+    restart: always
+    depends_on:
+      - librenems
+    environment:
+      - TZ=${TZ}
+      - PUID=1000
+      - PGID=1000
+      - DB_HOST=db
+      - DB_NAME=${MYSQL_DATABASE}
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_TIMEOUT=60
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SIDECAR_DISPATCHER=1
+      - DISPATCHER_NODE_ID=dispatcher1
+    volumes:
+      - librenems-data:/data
+    networks:
+      - librenems_net
+
+volumes:
+  db-data:
+  librenems-data:
+
+networks:
+  librenems_net:
+    driver: bridge

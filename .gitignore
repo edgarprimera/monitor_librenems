@@ -1,0 +1,12 @@
+# Archivos de entorno y credenciales sensibles
+.env
+*.env.local
+
+# Datos persistentes de contenedores (en caso de mapeos locales)
+data/
+*.db
+
+# Logs y temporales
+*.log
+.DS_Store
+Thumbs.db
