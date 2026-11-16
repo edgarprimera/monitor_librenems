@@ -262,24 +262,9 @@ write
 
 - [x] Despliegue de Docker Compose (MariaDB 10.11, Redis 7, Web y Dispatcher).
 - [x] Documentación y compatibilidad para Windows y Linux VPS.
-- [x] Módulo **Weathermap** integrado y persistente para diseño visual de mapas de enlaces NOC.
 - [ ] Integración de **Oxidized** para respaldo automático y versionado de configuraciones de MikroTik y ZTE.
+- [ ] Módulo **Weathermap** para visualización de capacidad de enlaces troncales en tiempo real.
 - [ ] Exportación de métricas de LibreNMS hacia **Grafana**.
-
----
-
-## 🗺️ Editor de Mapas Weathermap (Estilo NOC)
-
-El plugin **PHP Weathermap** está integrado y preconfigurado con persistencia de datos y ejecución periódica automática cada 5 minutos:
-
-1. **Acceso al Menú:** En LibreNMS, dirígete a: **Overview $\rightarrow$ Plugins $\rightarrow$ Weathermap**.
-2. **Editor Visual:** Para crear tu mapa y colocar los routers y OLTs de forma jerárquica con enlaces en tiempo real:
-   👉 **`http://localhost:8000/plugins/Weathermap/editor.php`**
-3. **Flujo de Creación:**
-   * Crea un nuevo mapa (ejemplo: `mapa_red_isp.conf`).
-   * **Add Node:** Agrega cada router (`RB_CORE_BRISAS`, `RB_CORE_PSI`, OLTs).
-   * **Add Link:** Conecta los nodos entre sí y selecciona la interfaz física o túnel WireGuard de donde extraer el ancho de banda.
-   * Guarda el mapa: el poller lo renderizará automáticamente cada 5 minutos mostrando el tráfico y los colores de saturación.
 
 ---
 
